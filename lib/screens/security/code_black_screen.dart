@@ -294,3 +294,45 @@ class _CodeBlackScreenState extends State<CodeBlackScreen>
                           ),
                         ],
                       ),
+
+                // Hidden emergency unlock hotspot.
+                Positioned(
+                  top: 0,
+                  right: 0,
+                  width: 88,
+                  height: 88,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: _onCornerTapped,
+                    onDoubleTap: _onEmergencyDoubleTap,
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _CrtScanlinePainter extends CustomPainter {
+  const _CrtScanlinePainter({required this.glitchValue});
+
+  final double glitchValue;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.red.withValues(alpha: 0.025 + (glitchValue * 0.025))
+      ..strokeWidth = 1;
+    for (double y = 0; y < size.height; y += 4) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _CrtScanlinePainter oldDelegate) =>
+      oldDelegate.glitchValue != glitchValue;
+}
