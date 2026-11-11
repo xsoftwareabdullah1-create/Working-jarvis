@@ -3,7 +3,7 @@
 # ⚡ J.A.R.V.I.S. (PrivateAgent)
 
 ### **Autonomous, Self-Evolving On-Device AI Assistant & Android UI Automation Agent**
-*Architected and Engineered with Precision by **Abuzar***
+*Architected and Engineered with Precision by **xsoftwareabdullah1-create***
 
 ---
 
