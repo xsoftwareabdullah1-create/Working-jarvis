@@ -45,10 +45,10 @@ jobs:
           python3 - "${{ steps.locate.outputs.dir }}" <<'PY'
           import os, re, sys
           d = sys.argv[1]
-          m = re.search(r'^name:\\s*(\\S+)', open(os.path.join(d, 'pubspec.yaml')).read(), re.M)
+          m = re.search(r'^name:\s*(\S+)', open(os.path.join(d, 'pubspec.yaml')).read(), re.M)
           pkg = m.group(1) if m else ''
           skip = {'build', '.dart_tool', '.git', '.github'}
-          pattern = re.compile(r"""^\\s*(?:import|export|part)\\s+['"]([^'"]+)['"]""", re.M)
+          pattern = re.compile(r"""^\s*(?:import|export|part)\s+['"]([^'"]+)['"]""", re.M)
           missing = []
           for root, dirs, files in os.walk(d):
               dirs[:] = [name for name in dirs if name not in skip]
