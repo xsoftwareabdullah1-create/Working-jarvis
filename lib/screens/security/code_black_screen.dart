@@ -294,6 +294,9 @@ class _CodeBlackScreenState extends State<CodeBlackScreen>
                           ),
                         ],
                       ),
+                    ),
+                  ),
+                ),
 
                 // Hidden emergency unlock hotspot.
                 Positioned(
