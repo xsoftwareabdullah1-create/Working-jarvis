@@ -39,41 +39,70 @@ jobs:
           echo "Flutter project found in: $DIR"
           echo "dir=$DIR" >> "$GITHUB_OUTPUT"
 
-      # 1) Repairs .dart files that were uploaded into a wrongly named folder
-      #    (e.g. lib/screen/ instead of lib/screens/) by copying them to the
-      #    expected path. 2) Fails with a clear list if anything is still missing.
+      # Reads the Dart import lines, and if an imported file is missing but
+      # exists elsewhere in the repo under the same name (e.g. uploaded to
+      # lib/screen/ instead of lib/screens/), copies it to the expected path.
+      # Needs no extra files. Fails with a clear list if something is truly missing.
       - name: Repair misplaced files and verify
         run: |
-          DIR="${{ steps.locate.outputs.dir }}"
-          LIST=".github/required-files.txt"
-          if [ ! -f "$LIST" ]; then echo "No $LIST found, skipping check."; exit 0; fi
+          python3 - "${{ steps.locate.outputs.dir }}" <<'PY'
+          import os, re, shutil, sys
+          d = sys.argv[1]
+          m = re.search(r'^name:\s*(\S+)', open(os.path.join(d, 'pubspec.yaml')).read(), re.M)
+          pkg = m.group(1) if m else ''
+          skip = {'build', '.dart_tool', '.git', '.github'}
+          pat = re.compile(r"""^\s*(?:import|export|part)\s+['"]([^'"]+)['"]""", re.M)
 
-          while IFS= read -r f; do
-            [ -z "$f" ] && continue
-            [ -f "$DIR/$f" ] && continue
-            case "$f" in *.dart) ;; *) continue ;; esac
-            base=$(basename "$f")
-            mapfile -t found < <(find "$DIR" -type f -name "$base" -not -path '*/build/*' -not -path '*/.dart_tool/*')
-            if [ "${#found[@]}" -eq 1 ]; then
-              mkdir -p "$DIR/$(dirname "$f")"
-              cp "${found[0]}" "$DIR/$f"
-              echo "::warning::Repaired misplaced file: ${found[0]} -> $DIR/$f (please move it in your repo)"
-            fi
-          done < "$LIST"
+          def dart_files():
+              for root, dirs, files in os.walk(d):
+                  dirs[:] = [x for x in dirs if x not in skip]
+                  for f in files:
+                      if f.endswith('.dart'):
+                          yield os.path.join(root, f)
 
-          MISSING=0
-          while IFS= read -r f; do
-            [ -z "$f" ] && continue
-            if [ ! -f "$DIR/$f" ]; then
-              echo "::error::MISSING FILE: $f"
-              MISSING=$((MISSING+1))
-            fi
-          done < "$LIST"
-          if [ "$MISSING" -gt 0 ]; then
-            echo "::error::$MISSING file(s) are missing from the repo. Upload them (same folder paths) and re-run."
-            exit 1
-          fi
-          echo "All $(wc -l < "$LIST") files present."
+          def resolve(src, imp):
+              if imp.startswith('dart:'):
+                  return None
+              if imp.startswith('package:'):
+                  if pkg and imp.startswith('package:%s/' % pkg):
+                      return os.path.join(d, 'lib', imp[len('package:%s/' % pkg):])
+                  return None
+              return os.path.normpath(os.path.join(os.path.dirname(src), imp))
+
+          missing = {}
+          for _ in range(6):
+              files = list(dart_files())
+              byname = {}
+              for f in files:
+                  byname.setdefault(os.path.basename(f), []).append(f)
+              missing = {}
+              repaired = False
+              for f in files:
+                  if not os.path.isfile(f):
+                      continue
+                  text = open(f, encoding='utf-8', errors='ignore').read()
+                  for imp in pat.findall(text):
+                      t = resolve(f, imp)
+                      if not t or os.path.isfile(t):
+                          continue
+                      c = byname.get(os.path.basename(t), [])
+                      if len(c) == 1:
+                          os.makedirs(os.path.dirname(t), exist_ok=True)
+                          shutil.move(c[0], t)
+                          print('::warning::Moved misplaced file: %s -> %s' % (c[0], t))
+                          repaired = True
+                      else:
+                          missing[t] = f
+              if not repaired:
+                  break
+
+          if missing:
+              for t, f in sorted(missing.items()):
+                  print('::error::MISSING FILE: %s (imported by %s)' % (t, f))
+              print('::error::%d file(s) are missing from the repo. Upload them and re-run.' % len(missing))
+              sys.exit(1)
+          print('All imported Dart files are present.')
+          PY
 
       - name: Set up Java 17
         uses: actions/setup-java@v4
