@@ -88,7 +88,7 @@ jobs:
                       c = byname.get(os.path.basename(t), [])
                       if len(c) == 1:
                           os.makedirs(os.path.dirname(t), exist_ok=True)
-                          shutil.move(c[0], t)
+                          shutil.copy2(c[0], t)
                           print('::warning::Moved misplaced file: %s -> %s' % (c[0], t))
                           repaired = True
                       else:
