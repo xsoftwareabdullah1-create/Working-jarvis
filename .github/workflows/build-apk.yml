@@ -39,6 +39,42 @@ jobs:
           echo "Flutter project found in: $DIR"
           echo "dir=$DIR" >> "$GITHUB_OUTPUT"
 
+      # 1) Repairs .dart files that were uploaded into a wrongly named folder
+      #    (e.g. lib/screen/ instead of lib/screens/) by copying them to the
+      #    expected path. 2) Fails with a clear list if anything is still missing.
+      - name: Repair misplaced files and verify
+        run: |
+          DIR="${{ steps.locate.outputs.dir }}"
+          LIST=".github/required-files.txt"
+          if [ ! -f "$LIST" ]; then echo "No $LIST found, skipping check."; exit 0; fi
+
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            [ -f "$DIR/$f" ] && continue
+            case "$f" in *.dart) ;; *) continue ;; esac
+            base=$(basename "$f")
+            mapfile -t found < <(find "$DIR" -type f -name "$base" -not -path '*/build/*' -not -path '*/.dart_tool/*')
+            if [ "${#found[@]}" -eq 1 ]; then
+              mkdir -p "$DIR/$(dirname "$f")"
+              cp "${found[0]}" "$DIR/$f"
+              echo "::warning::Repaired misplaced file: ${found[0]} -> $DIR/$f (please move it in your repo)"
+            fi
+          done < "$LIST"
+
+          MISSING=0
+          while IFS= read -r f; do
+            [ -z "$f" ] && continue
+            if [ ! -f "$DIR/$f" ]; then
+              echo "::error::MISSING FILE: $f"
+              MISSING=$((MISSING+1))
+            fi
+          done < "$LIST"
+          if [ "$MISSING" -gt 0 ]; then
+            echo "::error::$MISSING file(s) are missing from the repo. Upload them (same folder paths) and re-run."
+            exit 1
+          fi
+          echo "All $(wc -l < "$LIST") files present."
+
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
