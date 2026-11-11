@@ -119,6 +119,15 @@ jobs:
       - name: Flutter version
         run: flutter --version
 
+      # The repository contains Android Gradle settings but may omit the wrapper launcher/JAR.
+      # Re-create only missing Android platform scaffolding before invoking the release build.
+      - name: Ensure Android Gradle wrapper exists
+        working-directory: ${{ steps.locate.outputs.dir }}
+        run: |
+          flutter create --platforms=android --project-name=private_agent --org=com.privateagent --no-pub .
+          test -x android/gradlew
+          test -f android/gradle/wrapper/gradle-wrapper.jar
+
       - name: Lower Gradle memory for CI
         working-directory: ${{ steps.locate.outputs.dir }}
         run: |
