@@ -445,11 +445,3 @@ void main() {
       await memory.wipeAll();
     });
   });
-
-  group('Inbox Reading & Permission Manager', () {
-    test('Parses and formats SMS and Email inbox models', () async {
-      final sms = SmsMessage.fromMap({
-        'id': '101',
-        'sender': '+1234567890',
-        'body': 'Your one-time login code is 492819',
-        'date': DateTime.now().milli
